@@ -6,6 +6,7 @@ blueprint:
     - Bedroom temperature sensor (user selectable)
     - Outside temperature (from a weather entity, user selectable)
     - AC climate entity (user selectable)
+
     **Logic:**
     - If both the bedroom and outside temperature are above the threshold (user selectable, default: 24.5°C), and it's between sunrise and sunset:
       - If the AC is not on, it will be turned on and set to your selected temperature.
@@ -17,13 +18,16 @@ blueprint:
         - 29–30°C: Turbo
       - A notification is sent to your mobile device with dynamic info.
     - The automation only triggers if any of these actions would actually change the AC state or fan speed.
+
     ---
     **Entities to Select:**
     - Bedroom temperature sensor
     - Weather entity
     - Bedroom AC climate entity
+
     **Notification:**
-    - Sent to your selected mobile device via the Home Assistant mobile app.
+    - Enter your Home Assistant notify service (e.g. notify.mobile_app_pixel_9_pro).
+
   domain: automation
   input:
     bedroom_temp_sensor:
@@ -71,10 +75,13 @@ blueprint:
           max: 30
           step: 0.5
           unit_of_measurement: "°C"
+
 mode: single
+
 trigger:
   - platform: time_pattern
     minutes: "/10"
+
 variables:
   outside_temp: "{{ state_attr(blueprint.inputs.outside_weather_entity, 'temperature') | float(0) }}"
   bedroom_temp: "{{ states(blueprint.inputs.bedroom_temp_sensor) | float(0) }}"
@@ -93,6 +100,7 @@ variables:
     {% else %}
       unknown
     {% endif %}
+
 condition:
   - condition: numeric_state
     entity_id: !input bedroom_temp_sensor
@@ -106,6 +114,7 @@ condition:
     value_template: >-
       {{ not is_state(blueprint.inputs.bedroom_ac_climate, 'on')
          or (state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != fan_speed and fan_speed != 'unknown') }}
+
 action:
   - choose:
       - conditions:
