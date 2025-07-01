@@ -10,7 +10,7 @@ blueprint:
       selector:
         entity:
           domain: notify
-        multiple: true
+          multiple: true
     ac_entity:
       name: AC Climate Entity
       description: The climate entity controlling your AC
