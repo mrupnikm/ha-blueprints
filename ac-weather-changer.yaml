@@ -2,33 +2,28 @@ blueprint:
   name: AC Control Based on Room & Outside Temp, Fan Speed, and Notification (Sun Up Only)
   description: |-
     ## AC Control Automation (Template)
-
-    This automation manages your bedroom AC based on:
+    This blueprint manages your bedroom AC based on:
     - Bedroom temperature sensor (user selectable)
     - Outside temperature (from a weather entity, user selectable)
     - AC climate entity (user selectable)
-
     **Logic:**
     - If both the bedroom and outside temperature are above the threshold (user selectable, default: 24.5°C), and it's between sunrise and sunset:
       - If the AC is not on, it will be turned on and set to your selected temperature.
       - The AC fan speed will be set based on the current outside temperature:
-        - 24.5–25°C: quiet
-        - 25–25.5°C: low
-        - 25.5–27°C: medium
-        - 27–29°C: high
-        - 29–30°C: turbo
+        - 24.5–25°C: Quiet
+        - 25–25.5°C: Low
+        - 25.5–27°C: Medium
+        - 27–29°C: High
+        - 29–30°C: Turbo
       - A notification is sent to your mobile device with dynamic info.
     - The automation only triggers if any of these actions would actually change the AC state or fan speed.
-
     ---
     **Entities to Select:**
     - Bedroom temperature sensor
     - Weather entity
     - Bedroom AC climate entity
-
     **Notification:**
     - Sent to your selected mobile device via the Home Assistant mobile app.
-
   domain: automation
   input:
     bedroom_temp_sensor:
@@ -51,11 +46,11 @@ blueprint:
         entity:
           domain: climate
     mobile_notify_target:
-      name: Mobile Notification Target
-      description: "Choose your mobile notification service (e.g. notify.mobile_app_*)."
+      name: Mobile Notification Service
+      description: "Enter your notify service (e.g. notify.mobile_app_pixel_9_pro)."
+      default: "notify.mobile_app_pixel_9_pro"
       selector:
-        service:
-          integration: mobile_app
+        text:
     temp_threshold:
       name: Temperature Threshold
       description: "Temperature threshold for both inside and outside to trigger AC (default: 24.5)."
@@ -76,31 +71,28 @@ blueprint:
           max: 30
           step: 0.5
           unit_of_measurement: "°C"
-
 mode: single
-
 trigger:
   - platform: time_pattern
     minutes: "/10"
-
 variables:
   outside_temp: "{{ state_attr(blueprint.inputs.outside_weather_entity, 'temperature') | float(0) }}"
   bedroom_temp: "{{ states(blueprint.inputs.bedroom_temp_sensor) | float(0) }}"
   fan_speed: >-
+    {% set threshold = temp_threshold | float(0) %}
     {% if outside_temp > 29 and outside_temp <= 30 %}
-      turbo
+      Turbo
     {% elif outside_temp > 27 and outside_temp <= 29 %}
-      high
+      High
     {% elif outside_temp > 25.5 and outside_temp <= 27 %}
-      medium
-    {% elif outside_temp > temp_threshold and outside_temp <= 25.5 %}
-      low
-    {% elif outside_temp > temp_threshold and outside_temp <= 25 %}
-      quiet
+      Medium
+    {% elif outside_temp > threshold and outside_temp <= 25.5 %}
+      Low
+    {% elif outside_temp > threshold and outside_temp <= 25 %}
+      Quiet
     {% else %}
       unknown
     {% endif %}
-
 condition:
   - condition: numeric_state
     entity_id: !input bedroom_temp_sensor
@@ -114,7 +106,6 @@ condition:
     value_template: >-
       {{ not is_state(blueprint.inputs.bedroom_ac_climate, 'on')
          or (state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != fan_speed and fan_speed != 'unknown') }}
-
 action:
   - choose:
       - conditions:
@@ -131,48 +122,49 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ fan_speed == 'turbo' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'turbo' }}"
+            value_template: "{{ fan_speed == 'Turbo' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'Turbo' }}"
         sequence:
           - service: climate.set_fan_mode
             data:
               entity_id: !input bedroom_ac_climate
-              fan_mode: turbo
+              fan_mode: Turbo
       - conditions:
           - condition: template
-            value_template: "{{ fan_speed == 'high' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'high' }}"
+            value_template: "{{ fan_speed == 'High' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'High' }}"
         sequence:
           - service: climate.set_fan_mode
             data:
               entity_id: !input bedroom_ac_climate
-              fan_mode: high
+              fan_mode: High
       - conditions:
           - condition: template
-            value_template: "{{ fan_speed == 'medium' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'medium' }}"
+            value_template: "{{ fan_speed == 'Medium' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'Medium' }}"
         sequence:
           - service: climate.set_fan_mode
             data:
               entity_id: !input bedroom_ac_climate
-              fan_mode: medium
+              fan_mode: Medium
       - conditions:
           - condition: template
-            value_template: "{{ fan_speed == 'low' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'low' }}"
+            value_template: "{{ fan_speed == 'Low' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'Low' }}"
         sequence:
           - service: climate.set_fan_mode
             data:
               entity_id: !input bedroom_ac_climate
-              fan_mode: low
+              fan_mode: Low
       - conditions:
           - condition: template
-            value_template: "{{ fan_speed == 'quiet' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'quiet' }}"
+            value_template: "{{ fan_speed == 'Quiet' and state_attr(blueprint.inputs.bedroom_ac_climate, 'fan_mode') != 'Quiet' }}"
         sequence:
           - service: climate.set_fan_mode
             data:
               entity_id: !input bedroom_ac_climate
-              fan_mode: quiet
-  - service: !input mobile_notify_target
+              fan_mode: Quiet
+  - service: "{{ mobile_notify_target }}"
     data:
       title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-      message: "Turning on AC to {{ iif(not is_state(blueprint.inputs.bedroom_ac_climate, 'on'), set_ac_temperature ~ '°C ', '') }}(fan: {{ fan_speed }})"
+      message: >-
+        Turning on AC{% if not is_state(blueprint.inputs.bedroom_ac_climate, 'on') %} to {{ set_ac_temperature }}°C{% endif %} (fan: {{ fan_speed }})
       data:
         sticky: true
         persistent: true
