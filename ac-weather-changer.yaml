@@ -1,25 +1,23 @@
 blueprint:
-  name: AC Control with Fan Speed & ntfy Notifications (No Entity Defaults)
+  name: AC Control with Fan Speed & Action Picker Notification (Room Generic, No Entity Defaults)
   description: >
-    Turns on the AC if both the bedroom and outside temperature (from weather entity) are above the threshold, AND AC is not already on, AND only during sun up (between sunrise and sunset). Adjusts AC fan speed (Quiet, Low, Medium, High, Turbo) based on the outside temperature attribute. Notifies when AC is turned on or fan speed changes, with dynamic temperature and fan speed info. Lets you select ntfy (or any notify service) notification targets, as well as AC entity and temperature sensors. No default entities are set.
+    Turns on the AC if both the room and outside temperature (from weather entity) are above the threshold, AND AC is not already on, AND only during sun up (between sunrise and sunset). Adjusts AC fan speed (Quiet, Low, Medium, High, Turbo) based on the outside temperature attribute. Notifies (or performs any action) when AC is turned on or fan speed changes, with dynamic temperature and fan speed info. Lets you select any action(s) (notify, TTS, script, etc.) using the action picker for notification steps. No default entities or states are referenced.
   domain: automation
   input:
-    notify_targets:
-      name: Notification targets
-      description: Select one or more notify services or devices to send ntfy notifications
+    notify_action:
+      name: Notification or Custom Action(s)
+      description: Action(s) to perform on notification (use action picker). You can use variables: notify_title and notify_message
       selector:
-        entity:
-          domain: notify
-          multiple: true
+        action: {}
     ac_entity:
       name: AC Climate Entity
       description: The climate entity controlling your AC
       selector:
         entity:
           domain: climate
-    bedroom_temp_sensor:
-      name: Bedroom Temperature Sensor
-      description: Sensor for bedroom temperature
+    room_temp_sensor:
+      name: Room Temperature Sensor
+      description: Sensor for room temperature
       selector:
         entity:
           domain: sensor
@@ -30,9 +28,9 @@ blueprint:
       selector:
         entity:
           domain: weather
-    bedroom_temp_threshold:
-      name: Bedroom Temp Threshold
-      description: Minimum bedroom temperature to trigger AC
+    room_temp_threshold:
+      name: Room Temp Threshold
+      description: Minimum room temperature to trigger AC
       default: 24.5
       selector:
         number:
@@ -67,19 +65,19 @@ trigger:
 
 condition:
   - condition: numeric_state
-    entity_id: !input bedroom_temp_sensor
-    above: !input bedroom_temp_threshold
+    entity_id: !input room_temp_sensor
+    above: !input room_temp_threshold
   - condition: template
     value_template: >
-      {{ state_attr((inputs.outside_temp_weather if inputs is defined else ''), 'temperature') | float(0) > (inputs.outside_temp_threshold if inputs is defined else 24.5) }}
+      {{ state_attr(inputs.outside_temp_weather, 'temperature') | float(0) > inputs.outside_temp_threshold }}
   - condition: sun
     after: sunrise
     before: sunset
 
 variables:
   outside_temp: "{{ state_attr(inputs.outside_temp_weather, 'temperature') | float(0) }}"
-  bedroom_temp: "{{ states(inputs.bedroom_temp_sensor) | float(0) }}"
-  temp_threshold: !input bedroom_temp_threshold
+  room_temp: "{{ states(inputs.room_temp_sensor) | float(0) }}"
+  temp_threshold: !input room_temp_threshold
   set_ac_temperature: !input set_ac_temperature
   ac_entity: !input ac_entity
   fan_speed: |-
@@ -96,6 +94,9 @@ variables:
     {% else %}
       unknown
     {% endif %}
+  notify_title: "Room: {{ room_temp }}°C | Outside: {{ outside_temp }}°C"
+  notify_message_on: "Turning on AC to {{ set_ac_temperature }}°C (fan: {{ fan_speed }})"
+  notify_message_fan: "Setting AC fan mode to {{ fan_speed }}"
 
 action:
   - choose:
@@ -111,15 +112,9 @@ action:
               entity_id: "{{ ac_entity }}"
               temperature: "{{ set_ac_temperature }}"
           - variables:
-              notify_title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-              notify_message: "Turning on AC to {{ set_ac_temperature }}°C (fan: {{ fan_speed }})"
-          - repeat:
-              for_each: !input notify_targets
-              sequence:
-                - service: "{{ repeat.item }}"
-                  data:
-                    message: "{{ notify_message }}"
-                    title: "{{ notify_title }}"
+              notify_message: "{{ notify_message_on }}"
+          - choose: []
+            default: !input notify_action
   - choose:
       - conditions:
           - condition: template
@@ -131,15 +126,9 @@ action:
               entity_id: "{{ ac_entity }}"
               fan_mode: Turbo
           - variables:
-              notify_title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-              notify_message: "Setting AC fan mode to Turbo"
-          - repeat:
-              for_each: !input notify_targets
-              sequence:
-                - service: "{{ repeat.item }}"
-                  data:
-                    message: "{{ notify_message }}"
-                    title: "{{ notify_title }}"
+              notify_message: "{{ notify_message_fan }}"
+          - choose: []
+            default: !input notify_action
       - conditions:
           - condition: template
             value_template: >
@@ -150,15 +139,9 @@ action:
               entity_id: "{{ ac_entity }}"
               fan_mode: High
           - variables:
-              notify_title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-              notify_message: "Setting AC fan mode to High"
-          - repeat:
-              for_each: !input notify_targets
-              sequence:
-                - service: "{{ repeat.item }}"
-                  data:
-                    message: "{{ notify_message }}"
-                    title: "{{ notify_title }}"
+              notify_message: "{{ notify_message_fan }}"
+          - choose: []
+            default: !input notify_action
       - conditions:
           - condition: template
             value_template: >
@@ -169,15 +152,9 @@ action:
               entity_id: "{{ ac_entity }}"
               fan_mode: Medium
           - variables:
-              notify_title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-              notify_message: "Setting AC fan mode to Medium"
-          - repeat:
-              for_each: !input notify_targets
-              sequence:
-                - service: "{{ repeat.item }}"
-                  data:
-                    message: "{{ notify_message }}"
-                    title: "{{ notify_title }}"
+              notify_message: "{{ notify_message_fan }}"
+          - choose: []
+            default: !input notify_action
       - conditions:
           - condition: template
             value_template: >
@@ -188,15 +165,9 @@ action:
               entity_id: "{{ ac_entity }}"
               fan_mode: Low
           - variables:
-              notify_title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-              notify_message: "Setting AC fan mode to Low"
-          - repeat:
-              for_each: !input notify_targets
-              sequence:
-                - service: "{{ repeat.item }}"
-                  data:
-                    message: "{{ notify_message }}"
-                    title: "{{ notify_title }}"
+              notify_message: "{{ notify_message_fan }}"
+          - choose: []
+            default: !input notify_action
       - conditions:
           - condition: template
             value_template: >
@@ -207,14 +178,8 @@ action:
               entity_id: "{{ ac_entity }}"
               fan_mode: Quiet
           - variables:
-              notify_title: "Bedroom: {{ bedroom_temp }}°C | Outside: {{ outside_temp }}°C"
-              notify_message: "Setting AC fan mode to Quiet"
-          - repeat:
-              for_each: !input notify_targets
-              sequence:
-                - service: "{{ repeat.item }}"
-                  data:
-                    message: "{{ notify_message }}"
-                    title: "{{ notify_title }}"
+              notify_message: "{{ notify_message_fan }}"
+          - choose: []
+            default: !input notify_action
 
 mode: single
