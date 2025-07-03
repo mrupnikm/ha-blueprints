@@ -1,12 +1,10 @@
 blueprint:
   name: AC Control with Fan Speed & Action Picker Notification (Room Generic, No Entity Defaults)
-  description: >
-    Turns on the AC if both the room and outside temperature (from weather entity) are above the threshold, AND AC is not already on, AND only during sun up (between sunrise and sunset). Adjusts AC fan speed (Quiet, Low, Medium, High, Turbo) based on the outside temperature attribute. Notifies (or performs any action) when AC is turned on or fan speed changes, with dynamic temperature and fan speed info. Lets you select any action(s) (notify, TTS, script, etc.) using the action picker for notification steps. No default entities or states are referenced.
   domain: automation
   input:
     notify_action:
       name: Notification or Custom Action(s)
-      description: Action(s) to perform on notification (use action picker). You can use variables: notify_title and notify_message
+      description: "Action(s) to perform on notification (use action picker). You can use variables: notify_title and notify_message"
       selector:
         action: {}
     ac_entity:
